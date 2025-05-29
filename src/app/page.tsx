@@ -3,8 +3,8 @@ import { Table } from '@/components';
 import { generateFakeData } from '@/utils';
 
 const Home = async ({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) => {
-    const rowsParam = (await searchParams).rows as string
-    const rows = isNaN(Number(rowsParam)) ? 3000 : Number(rowsParam)
+    const rowsParam = (await searchParams).rows as string;
+    const rows = isNaN(Number(rowsParam)) ? 3000 : Number(rowsParam);
 
     const people = generateFakeData(rows);
 

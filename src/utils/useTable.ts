@@ -6,9 +6,12 @@ import { useState } from 'react';
 import naturalSort from 'javascript-natural-sort';
 
 export type Column<TData> = {
-    header: React.ReactNode;
+    header: string;
     accessor: keyof TData;
     cell: (col: TData) => React.ReactNode;
+    isSortable?: boolean;
+    isFilterable?: boolean;
+    isVisible?: boolean;
 };
 
 type UseTableProps<TData> = {
@@ -21,7 +24,17 @@ type Sort<TData> = {
     sort: 'default' | 'asc' | 'desc';
 };
 
+export type UseTableValue<TData> = ReturnType<typeof useTable<TData>>;
+
 export function useTable<TData>({ data, columns }: UseTableProps<TData>) {
+    const [tableColumns, setTableColumns] = useState(
+        columns.map((col) => ({
+            ...col,
+            isFilterable: col.isFilterable ?? true,
+            isSortable: col.isSortable ?? true,
+            isVisible: col.isVisible ?? true
+        }))
+    );
     const [filters, setFilters] = useState(getDefaultFilters({ data, columns }));
     const [sorts, setSorts] = useState<Sort<TData>>({
         accessor: null,
@@ -29,9 +42,12 @@ export function useTable<TData>({ data, columns }: UseTableProps<TData>) {
     });
 
     const getHeaders = () => {
-        return columns.map((col) => ({
+        return tableColumns.map((col) => ({
             header: col.header,
-            id: col.accessor
+            id: col.accessor,
+            isSortable: col.isSortable,
+            isFilterable: col.isFilterable,
+            isVisible: col.isVisible
         }));
     };
 
@@ -40,9 +56,12 @@ export function useTable<TData>({ data, columns }: UseTableProps<TData>) {
             ?.map((row, rowIdx) => {
                 return {
                     id: rowIdx,
-                    cols: columns.map((col) => ({
+                    cols: tableColumns.map((col) => ({
                         col,
-                        cell: col.cell(row)
+                        cell: col.cell(row),
+                        isSortable: col.isSortable ?? true,
+                        isFilterable: col.isFilterable ?? true,
+                        isVisible: col.isVisible ?? true
                     })),
                     row
                 };
@@ -132,7 +151,7 @@ export function useTable<TData>({ data, columns }: UseTableProps<TData>) {
     };
 
     const clearFilters = (accessor?: keyof TData) => {
-        const defaultFilters = getDefaultFilters({ data, columns });
+        const defaultFilters = getDefaultFilters({ data, columns: tableColumns });
 
         /**
          * If no accessor is passed clear all filters
@@ -147,6 +166,48 @@ export function useTable<TData>({ data, columns }: UseTableProps<TData>) {
         }
     };
 
+    const toggleFilterable = (accessor: keyof TData) => {
+        setTableColumns((columns) =>
+            columns.map((column) => {
+                if (column.accessor === accessor) {
+                    return {
+                        ...column,
+                        isFilterable: !column.isFilterable
+                    };
+                }
+                return column;
+            })
+        );
+    };
+
+    const toggleSortable = (accessor: keyof TData) => {
+        setTableColumns((columns) =>
+            columns.map((column) => {
+                if (column.accessor === accessor) {
+                    return {
+                        ...column,
+                        isSortable: !column.isSortable
+                    };
+                }
+                return column;
+            })
+        );
+    };
+
+    const toggleColumnVisibility = (accessor: keyof TData, visibility?: boolean) => {
+        setTableColumns((columns) =>
+            columns.map((column) => {
+                if (column.accessor === accessor) {
+                    return {
+                        ...column,
+                        isVisible: visibility ?? !column.isVisible
+                    };
+                }
+                return column;
+            })
+        );
+    };
+
     return {
         getHeaders,
         getRows,
@@ -155,7 +216,10 @@ export function useTable<TData>({ data, columns }: UseTableProps<TData>) {
         handleFilterChange,
         handleSortChange,
         getAppliedFilters,
-        clearFilters
+        clearFilters,
+        toggleFilterable,
+        toggleSortable,
+        toggleColumnVisibility
     };
 }
 
