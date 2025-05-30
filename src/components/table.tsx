@@ -35,9 +35,6 @@ interface TableProps<TData> {
     data: TData[];
 }
 
-const TABLE_HEIGHT = 600;
-const ROW_HEIGHT = 40;
-
 function Table<TData>({ data }: TableProps<TData>) {
     const tableParentRef = useRef(null);
 
@@ -71,15 +68,15 @@ function Table<TData>({ data }: TableProps<TData>) {
         columns
     });
 
-    const rowVirtualizer = useVirtualizer({
-        count: table.getRows().length,
-        getScrollElement: () => tableParentRef.current,
-        estimateSize: () => ROW_HEIGHT,
-        measureElement: (el) => el.getBoundingClientRect().height
-    });
-
     const headers = table.getHeaders();
     const rows = table.getRows();
+
+    const rowVirtualizer = useVirtualizer({
+        count: rows.length,
+        getScrollElement: () => tableParentRef.current,
+        estimateSize: () => 40,
+        measureElement: (el) => el.getBoundingClientRect().height
+    });
 
     return (
         <div>
@@ -129,9 +126,10 @@ function Table<TData>({ data }: TableProps<TData>) {
                 </div>
             </div>
             <div className="rounded-xl border border-neutral-700 p-0.5">
-                <div className="relative isolate w-full border-separate border-spacing-0">
+                <div role="table" aria-label="Dynamic table" className="w-full">
                     <div
-                        className="both-edges z-10 grid items-center overflow-auto bg-neutral-900"
+                        role="rowgroup"
+                        className="z-10 grid items-center overflow-auto bg-neutral-900"
                         style={{
                             scrollbarGutter: 'stable',
                             gridTemplateColumns: `repeat(${headers.filter((h) => h.isVisible).length}, minmax(0, 1fr))`
@@ -143,6 +141,17 @@ function Table<TData>({ data }: TableProps<TData>) {
                                 <div
                                     key={header.id as string}
                                     className="border-b border-neutral-700 px-3 py-2 text-left font-normal whitespace-nowrap text-neutral-400 not-last:border-r not-last:border-neutral-700"
+                                    role="columnheader"
+                                    tabIndex={0}
+                                    aria-sort={
+                                        header.isSortable
+                                            ? table.sorts.accessor === header.id
+                                                ? table.sorts.sort === 'asc'
+                                                    ? 'ascending'
+                                                    : 'descending'
+                                                : 'none'
+                                            : undefined
+                                    }
                                 >
                                     <div className="flex items-center justify-between gap-3">
                                         <div>{header.header}</div>
@@ -180,13 +189,16 @@ function Table<TData>({ data }: TableProps<TData>) {
 
                     <div
                         ref={tableParentRef}
-                        style={{ maxHeight: TABLE_HEIGHT, overflow: 'auto', scrollbarGutter: 'stable' }}
+                        role="rowgroup"
+                        style={{ maxHeight: 600, overflow: 'auto', scrollbarGutter: 'stable' }}
                     >
                         <div style={{ height: rowVirtualizer.getTotalSize(), width: '100%', position: 'relative' }}>
                             {rows.length > 0 ? (
                                 rowVirtualizer.getVirtualItems().map((virtualRow) => (
                                     <div
                                         key={virtualRow.key}
+                                        data-index={virtualRow.index}
+                                        role="row"
                                         ref={(el) => rowVirtualizer.measureElement(el)}
                                         style={{
                                             position: 'absolute',
@@ -198,19 +210,15 @@ function Table<TData>({ data }: TableProps<TData>) {
                                             gridTemplateColumns: `repeat(${headers.filter((h) => h.isVisible).length}, minmax(0, 1fr))`,
                                             boxSizing: 'border-box'
                                         }}
+                                        className="not-last:border-b not-last:border-b-neutral-700"
                                     >
                                         {rows[virtualRow.index]?.cols
                                             .filter((col) => col.isVisible)
                                             .map((col) => (
                                                 <div
                                                     key={col.col.accessor as string}
-                                                    className={cn(
-                                                        'h-full grow-1 px-3 py-2 align-baseline not-last:border-r not-last:border-r-neutral-700',
-                                                        {
-                                                            'border-b border-b-neutral-700':
-                                                                virtualRow.index !== data.length - 1
-                                                        }
-                                                    )}
+                                                    role="cell"
+                                                    className="h-full grow-1 px-3 py-2 align-baseline break-all not-last:border-r not-last:border-r-neutral-700"
                                                 >
                                                     {col.cell}
                                                 </div>
@@ -218,11 +226,11 @@ function Table<TData>({ data }: TableProps<TData>) {
                                     </div>
                                 ))
                             ) : (
-                                <tr>
-                                    <td colSpan={headers.length} className="p-4 text-center italic">
+                                <div role="row">
+                                    <div role="cell" className="row-span-full p-4 text-center italic">
                                         No data found
-                                    </td>
-                                </tr>
+                                    </div>
+                                </div>
                             )}
                         </div>
                     </div>
