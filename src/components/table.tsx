@@ -35,6 +35,9 @@ interface TableProps<TData> {
     data: TData[];
 }
 
+const TABLE_HEIGHT = 600;
+const ROW_HEIGHT = 40;
+
 function Table<TData>({ data }: TableProps<TData>) {
     const tableParentRef = useRef(null);
 
@@ -71,19 +74,19 @@ function Table<TData>({ data }: TableProps<TData>) {
     const rowVirtualizer = useVirtualizer({
         count: table.getRows().length,
         getScrollElement: () => tableParentRef.current,
-        estimateSize: () => 45
+        estimateSize: () => ROW_HEIGHT,
+        measureElement: (el) => el.getBoundingClientRect().height
     });
 
     const headers = table.getHeaders();
     const rows = table.getRows();
 
     return (
-        <div className="pb-16">
+        <div>
             <button
                 className="fixed right-8 bottom-12 flex cursor-pointer items-center gap-2 rounded-full bg-neutral-800 px-4 py-1.5 text-sm"
                 onClick={() => {
-                    window.scrollTo({
-                        top: 0,
+                    rowVirtualizer.scrollToOffset(0, {
                         behavior: 'smooth'
                     });
                 }}
@@ -125,86 +128,105 @@ function Table<TData>({ data }: TableProps<TData>) {
                     </Popover>
                 </div>
             </div>
-            <div className="rounded-xl border border-neutral-700 p-0.5" ref={tableParentRef}>
-                <table
-                    className="w-full border-separate border-spacing-0"
-                    style={{ height: rowVirtualizer.getTotalSize() }}
-                >
-                    <thead className="sticky top-0 bg-neutral-900">
-                        <tr>
-                            {headers
-                                .filter((header) => header.isVisible)
-                                .map((header, headerIdx) => (
-                                    <th
-                                        key={header.id as string}
-                                        className="border-b border-neutral-700 px-3 py-2 text-left font-normal whitespace-nowrap text-neutral-400 not-last:border-r not-last:border-neutral-700"
-                                    >
-                                        <div className="flex items-center justify-between gap-3">
-                                            <div>{header.header}</div>
+            <div className="rounded-xl border border-neutral-700 p-0.5">
+                <div className="relative isolate w-full border-separate border-spacing-0">
+                    <div
+                        className="both-edges z-10 grid items-center overflow-auto bg-neutral-900"
+                        style={{
+                            scrollbarGutter: 'stable',
+                            gridTemplateColumns: `repeat(${headers.filter((h) => h.isVisible).length}, minmax(0, 1fr))`
+                        }}
+                    >
+                        {headers
+                            .filter((header) => header.isVisible)
+                            .map((header, headerIdx) => (
+                                <div
+                                    key={header.id as string}
+                                    className="border-b border-neutral-700 px-3 py-2 text-left font-normal whitespace-nowrap text-neutral-400 not-last:border-r not-last:border-neutral-700"
+                                >
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div>{header.header}</div>
 
-                                            <div className="flex items-center">
-                                                <ColumnFilter
-                                                    header={header}
-                                                    headerIdx={headerIdx}
-                                                    filters={table.filters}
-                                                    appliedFilters={table.getAppliedFilters(header.id).applied}
-                                                    totalFilters={table.getAppliedFilters(header.id).total}
-                                                    handleFilterChange={table.handleFilterChange}
-                                                    clearFilters={table.clearFilters}
-                                                />
+                                        <div className="flex items-center">
+                                            <ColumnFilter
+                                                header={header}
+                                                headerIdx={headerIdx}
+                                                filters={table.filters}
+                                                appliedFilters={table.getAppliedFilters(header.id).applied}
+                                                totalFilters={table.getAppliedFilters(header.id).total}
+                                                handleFilterChange={table.handleFilterChange}
+                                                clearFilters={table.clearFilters}
+                                            />
 
-                                                <ColumnSort
-                                                    header={header}
-                                                    headerIdx={headerIdx}
-                                                    sorts={table.sorts}
-                                                    handleSortChange={table.handleSortChange}
-                                                />
+                                            <ColumnSort
+                                                header={header}
+                                                headerIdx={headerIdx}
+                                                sorts={table.sorts}
+                                                handleSortChange={table.handleSortChange}
+                                            />
 
-                                                <ColumnOptions
-                                                    header={header}
-                                                    headerIdx={headerIdx}
-                                                    toggleFilterable={table.toggleFilterable}
-                                                    toggleSortable={table.toggleSortable}
-                                                    toggleColumnVisibility={table.toggleColumnVisibility}
-                                                />
-                                            </div>
+                                            <ColumnOptions
+                                                header={header}
+                                                headerIdx={headerIdx}
+                                                toggleFilterable={table.toggleFilterable}
+                                                toggleSortable={table.toggleSortable}
+                                                toggleColumnVisibility={table.toggleColumnVisibility}
+                                            />
                                         </div>
-                                    </th>
-                                ))}
-                        </tr>
-                    </thead>
+                                    </div>
+                                </div>
+                            ))}
+                    </div>
 
-                    <tbody>
-                        {rows.length > 0 ? (
-                            rowVirtualizer.getVirtualItems().map((virtualRow) => (
-                                <tr key={virtualRow.key}>
-                                    {rows[virtualRow.index]?.cols
-                                        .filter((col) => col.isVisible)
-                                        .map((col) => (
-                                            <td
-                                                key={col.col.accessor as string}
-                                                className={cn(
-                                                    'px-3 py-2 align-baseline not-last:border-r not-last:border-r-neutral-700',
-                                                    {
-                                                        'border-b border-b-neutral-700':
-                                                            virtualRow.index !== data.length - 1
-                                                    }
-                                                )}
-                                            >
-                                                {col.cell}
-                                            </td>
-                                        ))}
+                    <div
+                        ref={tableParentRef}
+                        style={{ maxHeight: TABLE_HEIGHT, overflow: 'auto', scrollbarGutter: 'stable' }}
+                    >
+                        <div style={{ height: rowVirtualizer.getTotalSize(), width: '100%', position: 'relative' }}>
+                            {rows.length > 0 ? (
+                                rowVirtualizer.getVirtualItems().map((virtualRow) => (
+                                    <div
+                                        key={virtualRow.key}
+                                        ref={(el) => rowVirtualizer.measureElement(el)}
+                                        style={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            width: '100%',
+                                            transform: `translateY(${virtualRow.start}px)`,
+                                            display: 'grid',
+                                            gridTemplateColumns: `repeat(${headers.filter((h) => h.isVisible).length}, minmax(0, 1fr))`,
+                                            boxSizing: 'border-box'
+                                        }}
+                                    >
+                                        {rows[virtualRow.index]?.cols
+                                            .filter((col) => col.isVisible)
+                                            .map((col) => (
+                                                <div
+                                                    key={col.col.accessor as string}
+                                                    className={cn(
+                                                        'h-full grow-1 px-3 py-2 align-baseline not-last:border-r not-last:border-r-neutral-700',
+                                                        {
+                                                            'border-b border-b-neutral-700':
+                                                                virtualRow.index !== data.length - 1
+                                                        }
+                                                    )}
+                                                >
+                                                    {col.cell}
+                                                </div>
+                                            ))}
+                                    </div>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={headers.length} className="p-4 text-center italic">
+                                        No data found
+                                    </td>
                                 </tr>
-                            ))
-                        ) : (
-                            <tr>
-                                <td colSpan={headers.length} className="p-4 text-center italic">
-                                    No data found
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
+                            )}
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );
