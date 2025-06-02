@@ -68,11 +68,8 @@ function Table<TData>({ data }: TableProps<TData>) {
         columns
     });
 
-    const headers = table.getHeaders();
-    const rows = table.getRows();
-
     const rowVirtualizer = useVirtualizer({
-        count: rows.length,
+        count: table.rows.length,
         getScrollElement: () => tableParentRef.current,
         estimateSize: () => 40,
         measureElement: (el) => el.getBoundingClientRect().height
@@ -83,16 +80,14 @@ function Table<TData>({ data }: TableProps<TData>) {
             <button
                 className="fixed right-8 bottom-12 flex cursor-pointer items-center gap-2 rounded-full bg-neutral-800 px-4 py-1.5 text-sm"
                 onClick={() => {
-                    rowVirtualizer.scrollToOffset(0, {
-                        behavior: 'smooth'
-                    });
+                    rowVirtualizer.scrollToOffset(0);
                 }}
             >
                 <ArrowUp size={12} />
                 <span>Scroll to top</span>
             </button>
             <div className="mb-3 flex items-center justify-between gap-1">
-                <p className="text-sm">{rows.length} rows rendered</p>
+                <p className="text-sm">{table.rows.length} rows rendered</p>
                 <div className="flex items-center gap-6">
                     <button
                         className={cn('flex cursor-pointer items-center gap-1 text-sm', {
@@ -111,7 +106,7 @@ function Table<TData>({ data }: TableProps<TData>) {
                             </button>
                         </PopoverTrigger>
                         <PopoverContent className="flex w-fit flex-col gap-1 px-1 py-2 text-sm" align="end">
-                            {headers.map((header) => (
+                            {table.headers.map((header) => (
                                 <button
                                     key={header.id}
                                     className="flex cursor-pointer items-center gap-2 rounded py-1.5 pr-6 pl-2 text-left transition-colors hover:bg-neutral-900"
@@ -132,10 +127,10 @@ function Table<TData>({ data }: TableProps<TData>) {
                         className="z-10 grid items-center overflow-auto bg-neutral-900"
                         style={{
                             scrollbarGutter: 'stable',
-                            gridTemplateColumns: `repeat(${headers.filter((h) => h.isVisible).length}, minmax(0, 1fr))`
+                            gridTemplateColumns: `repeat(${table.headers.filter((h) => h.isVisible).length}, minmax(0, 1fr))`
                         }}
                     >
-                        {headers
+                        {table.headers
                             .filter((header) => header.isVisible)
                             .map((header, headerIdx) => (
                                 <div
@@ -193,7 +188,7 @@ function Table<TData>({ data }: TableProps<TData>) {
                         style={{ maxHeight: 600, overflow: 'auto', scrollbarGutter: 'stable' }}
                     >
                         <div style={{ height: rowVirtualizer.getTotalSize(), width: '100%', position: 'relative' }}>
-                            {rows.length > 0 ? (
+                            {table.rows.length > 0 ? (
                                 rowVirtualizer.getVirtualItems().map((virtualRow) => (
                                     <div
                                         key={virtualRow.key}
@@ -207,12 +202,12 @@ function Table<TData>({ data }: TableProps<TData>) {
                                             width: '100%',
                                             transform: `translateY(${virtualRow.start}px)`,
                                             display: 'grid',
-                                            gridTemplateColumns: `repeat(${headers.filter((h) => h.isVisible).length}, minmax(0, 1fr))`,
+                                            gridTemplateColumns: `repeat(${table.headers.filter((h) => h.isVisible).length}, minmax(0, 1fr))`,
                                             boxSizing: 'border-box'
                                         }}
                                         className="not-last:border-b not-last:border-b-neutral-700"
                                     >
-                                        {rows[virtualRow.index]?.cols
+                                        {table.rows[virtualRow.index]?.cols
                                             .filter((col) => col.isVisible)
                                             .map((col) => (
                                                 <div
@@ -241,7 +236,7 @@ function Table<TData>({ data }: TableProps<TData>) {
 }
 
 interface ColumnFilterProps<TData> {
-    header: ReturnType<UseTableValue<TData>['getHeaders']>[number];
+    header: UseTableValue<TData>['headers'][number];
     headerIdx: number;
     filters: UseTableValue<TData>['filters'];
     appliedFilters: number;
@@ -321,7 +316,7 @@ function ColumnFilter<TData>({
 }
 
 interface ColumnSortProps<TData> {
-    header: ReturnType<UseTableValue<TData>['getHeaders']>[number];
+    header: UseTableValue<TData>['headers'][number];
     headerIdx: number;
     sorts: UseTableValue<TData>['sorts'];
     handleSortChange: UseTableValue<TData>['handleSortChange'];
@@ -399,7 +394,7 @@ function ColumnSort<TData>({ header, headerIdx, sorts, handleSortChange }: Colum
 }
 
 interface ColumnOptionsProps<TData> {
-    header: ReturnType<UseTableValue<TData>['getHeaders']>[number];
+    header: UseTableValue<TData>['headers'][number];
     headerIdx: number;
     toggleSortable: UseTableValue<TData>['toggleSortable'];
     toggleFilterable: UseTableValue<TData>['toggleFilterable'];

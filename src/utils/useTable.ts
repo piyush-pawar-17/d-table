@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 /* @ts-expect-error No type defs */
 import naturalSort from 'javascript-natural-sort';
@@ -41,62 +41,66 @@ export function useTable<TData>({ data, columns }: UseTableProps<TData>) {
         sort: 'default'
     });
 
-    const getHeaders = () => {
-        return tableColumns.map((col) => ({
-            header: col.header,
-            id: col.accessor,
-            isSortable: col.isSortable,
-            isFilterable: col.isFilterable,
-            isVisible: col.isVisible
-        }));
-    };
+    const headers = useMemo(
+        () =>
+            tableColumns.map((col) => ({
+                header: col.header,
+                id: col.accessor,
+                isSortable: col.isSortable,
+                isFilterable: col.isFilterable,
+                isVisible: col.isVisible
+            })),
+        [tableColumns]
+    );
 
-    const getRows = () => {
-        return data
-            ?.map((row, rowIdx) => {
-                return {
-                    id: rowIdx,
-                    cols: tableColumns.map((col) => ({
-                        col,
-                        cell: col.cell(row),
-                        isSortable: col.isSortable ?? true,
-                        isFilterable: col.isFilterable ?? true,
-                        isVisible: col.isVisible ?? true
-                    })),
-                    row
-                };
-            })
-            .filter((row) => {
-                const rowsWithFilter = row.cols.map((col) => {
-                    const filter = filters[col.col.accessor as string];
-                    const cellValue = row.row[col.col.accessor];
+    const rows = useMemo(
+        () =>
+            data
+                ?.map((row, rowIdx) => {
+                    return {
+                        id: rowIdx,
+                        cols: tableColumns.map((col) => ({
+                            col,
+                            cell: col.cell(row),
+                            isSortable: col.isSortable ?? true,
+                            isFilterable: col.isFilterable ?? true,
+                            isVisible: col.isVisible ?? true
+                        })),
+                        row
+                    };
+                })
+                .filter((row) => {
+                    const rowsWithFilter = row.cols.map((col) => {
+                        const filter = filters[col.col.accessor as string];
+                        const cellValue = row.row[col.col.accessor];
 
-                    const filterForCell = filter?.find((f) => f.value === cellValue?.toString());
+                        const filterForCell = filter?.find((f) => f.value === cellValue?.toString());
 
-                    return !!filterForCell?.checked;
-                });
+                        return !!filterForCell?.checked;
+                    });
 
-                return rowsWithFilter.every((isVisible) => isVisible);
-            })
-            .toSorted((row1, row2) => {
-                if (!sorts.accessor || sorts.sort === 'default') {
+                    return rowsWithFilter.every((isVisible) => isVisible);
+                })
+                .toSorted((row1, row2) => {
+                    if (!sorts.accessor || sorts.sort === 'default') {
+                        return 0;
+                    }
+
+                    const r1Value = row1.row[sorts.accessor]?.toString()?.toLowerCase() || '';
+                    const r2Value = row2.row[sorts.accessor]?.toString()?.toLowerCase() || '';
+
+                    if (sorts.sort === 'asc') {
+                        return naturalSort(r1Value, r2Value);
+                    } else if (sorts.sort === 'desc') {
+                        return naturalSort(r2Value, r1Value);
+                    }
+
                     return 0;
-                }
+                }),
+        [data, filters, sorts.accessor, sorts.sort, tableColumns]
+    );
 
-                const r1Value = row1.row[sorts.accessor]?.toString()?.toLowerCase() || '';
-                const r2Value = row2.row[sorts.accessor]?.toString()?.toLowerCase() || '';
-
-                if (sorts.sort === 'asc') {
-                    return naturalSort(r1Value, r2Value);
-                } else if (sorts.sort === 'desc') {
-                    return naturalSort(r2Value, r1Value);
-                }
-
-                return 0;
-            });
-    };
-
-    const handleFilterChange = (accessor: keyof TData, value: string) => {
+    const handleFilterChange = useCallback((accessor: keyof TData, value: string) => {
         setFilters((appliedFilters) => ({
             ...appliedFilters,
             [accessor]: appliedFilters[accessor as string].map((filterValue: { value: string; checked: boolean }) => {
@@ -110,14 +114,14 @@ export function useTable<TData>({ data, columns }: UseTableProps<TData>) {
                 return filterValue;
             })
         }));
-    };
+    }, []);
 
-    const handleSortChange = (accessor: keyof TData | null, sortValue: 'default' | 'asc' | 'desc') => {
+    const handleSortChange = useCallback((accessor: keyof TData | null, sortValue: 'default' | 'asc' | 'desc') => {
         setSorts({
             accessor,
             sort: sortValue
         });
-    };
+    }, []);
 
     const getAppliedFilters = (accessor?: keyof TData) => {
         /**
@@ -150,23 +154,26 @@ export function useTable<TData>({ data, columns }: UseTableProps<TData>) {
         };
     };
 
-    const clearFilters = (accessor?: keyof TData) => {
-        const defaultFilters = getDefaultFilters({ data, columns: tableColumns });
+    const clearFilters = useCallback(
+        (accessor?: keyof TData) => {
+            const defaultFilters = getDefaultFilters({ data, columns: tableColumns });
 
-        /**
-         * If no accessor is passed clear all filters
-         */
-        if (!accessor) {
-            return setFilters(defaultFilters);
-        } else {
-            setFilters((filters) => ({
-                ...filters,
-                [accessor]: defaultFilters[accessor as string]
-            }));
-        }
-    };
+            /**
+             * If no accessor is passed clear all filters
+             */
+            if (!accessor) {
+                return setFilters(defaultFilters);
+            } else {
+                setFilters((filters) => ({
+                    ...filters,
+                    [accessor]: defaultFilters[accessor as string]
+                }));
+            }
+        },
+        [data, tableColumns]
+    );
 
-    const toggleFilterable = (accessor: keyof TData) => {
+    const toggleFilterable = useCallback((accessor: keyof TData) => {
         setTableColumns((columns) =>
             columns.map((column) => {
                 if (column.accessor === accessor) {
@@ -178,9 +185,9 @@ export function useTable<TData>({ data, columns }: UseTableProps<TData>) {
                 return column;
             })
         );
-    };
+    }, []);
 
-    const toggleSortable = (accessor: keyof TData) => {
+    const toggleSortable = useCallback((accessor: keyof TData) => {
         setTableColumns((columns) =>
             columns.map((column) => {
                 if (column.accessor === accessor) {
@@ -192,9 +199,9 @@ export function useTable<TData>({ data, columns }: UseTableProps<TData>) {
                 return column;
             })
         );
-    };
+    }, []);
 
-    const toggleColumnVisibility = (accessor: keyof TData, visibility?: boolean) => {
+    const toggleColumnVisibility = useCallback((accessor: keyof TData, visibility?: boolean) => {
         setTableColumns((columns) =>
             columns.map((column) => {
                 if (column.accessor === accessor) {
@@ -206,11 +213,11 @@ export function useTable<TData>({ data, columns }: UseTableProps<TData>) {
                 return column;
             })
         );
-    };
+    }, []);
 
     return {
-        getHeaders,
-        getRows,
+        headers,
+        rows,
         filters,
         sorts,
         handleFilterChange,
